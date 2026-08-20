@@ -8,47 +8,77 @@
     * { box-sizing: border-box; }
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #fff5f5;
+      background: #fff0f3;
       display: flex;
       justify-content: center;
       align-items: center;
       min-height: 100vh;
       margin: 0;
-      padding: 16px;
+      padding: 20px 16px;
     }
     .card {
       background: white;
-      padding: 32px 24px;
+      padding: 30px 24px;
       border-radius: 24px;
-      box-shadow: 0 10px 30px rgba(255, 107, 129, 0.15);
+      box-shadow: 0 12px 30px rgba(255, 107, 129, 0.15);
       text-align: center;
-      max-width: 380px;
+      max-width: 400px;
       width: 100%;
     }
-    h2 { color: #ff6b81; margin-top: 0; margin-bottom: 8px; font-size: 22px; }
-    p { color: #747d8c; font-size: 14px; margin-bottom: 24px; }
+    h2 { color: #ff6b81; margin-top: 0; margin-bottom: 6px; font-size: 22px; }
+    p { color: #747d8c; font-size: 14px; margin-bottom: 20px; }
     .btn {
       width: 100%;
-      padding: 14px;
-      margin: 8px 0;
+      padding: 12px;
+      margin: 6px 0;
       border: none;
       border-radius: 30px;
       font-size: 15px;
       font-weight: bold;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: 0.2s;
     }
     .btn-record { background: #ff4757; color: white; }
-    .btn-record:active { transform: scale(0.98); }
     .btn-record.recording { background: #2ed573; animation: pulse 1.5s infinite; }
     .btn-send { background: #70a1ff; color: white; display: none; }
     .btn-send:disabled { background: #ced6e0; cursor: not-allowed; }
-    audio { width: 100%; margin-top: 16px; display: none; }
-    #status { margin-top: 16px; font-size: 14px; color: #ff6b81; font-weight: 500; }
+    #previewAudio { width: 100%; margin-top: 12px; display: none; }
+    #status { margin-top: 12px; font-size: 13px; color: #ff6b81; font-weight: 500; }
+
+    .divider {
+      margin: 24px 0 16px;
+      border: none;
+      border-top: 2px dashed #ffeaa7;
+    }
+
+    .voice-list-header {
+      font-size: 16px;
+      color: #2f3542;
+      font-weight: bold;
+      margin-bottom: 12px;
+      text-align: left;
+    }
+    .voice-item {
+      background: #f8f9fa;
+      border: 1px solid #f1f2f6;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+    .voice-date {
+      font-size: 12px;
+      color: #a4b0be;
+      margin-bottom: 6px;
+    }
+    .voice-item audio {
+      width: 100%;
+      height: 36px;
+    }
 
     @keyframes pulse {
       0% { transform: scale(1); }
-      50% { transform: scale(1.03); opacity: 0.8; }
+      50% { transform: scale(1.02); opacity: 0.8; }
       100% { transform: scale(1); }
     }
   </style>
@@ -56,14 +86,20 @@
 <body>
 
   <div class="card">
-    <h2>💌 ฝากข้อความเสียง</h2>
-    <p>กดปุ่มด้านล่างเพื่ออัดเสียงสั้นๆ ได้เลยนะ</p>
+    <h2>💌 กล่องข้อความเสียง</h2>
+    <p>กดปุ่มเพื่ออัดเสียงส่งหากันได้เลย</p>
 
+    <!-- ส่วนอัดเสียง -->
     <button id="recordBtn" class="btn btn-record" onclick="toggleRecord()">🎙️ กดเพื่อเริ่มอัดเสียง</button>
-    <audio id="audioPlayback" controls></audio>
+    <audio id="previewAudio" controls></audio>
     <button id="sendBtn" class="btn btn-send" onclick="sendToGoogleDrive()">📤 ส่งข้อความเสียง</button>
-    
     <div id="status"></div>
+
+    <hr class="divider">
+
+    <!-- ส่วนรายการที่เปิดฟังได้ -->
+    <div class="voice-list-header">🎧 ข้อความเสียงทั้งหมด</div>
+    <div id="voiceList">กำลังโหลดข้อความเสียง...</div>
   </div>
 
   <script>
@@ -74,10 +110,11 @@
     let isRecording = false;
     let audioBlob = null;
 
+    // ฟังก์ชันอัดเสียง
     async function toggleRecord() {
       const recordBtn = document.getElementById('recordBtn');
       const sendBtn = document.getElementById('sendBtn');
-      const audioPlayback = document.getElementById('audioPlayback');
+      const previewAudio = document.getElementById('previewAudio');
       const status = document.getElementById('status');
 
       if (!isRecording) {
@@ -90,8 +127,8 @@
 
           mediaRecorder.onstop = () => {
             audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-            audioPlayback.src = URL.createObjectURL(audioBlob);
-            audioPlayback.style.display = 'block';
+            previewAudio.src = URL.createObjectURL(audioBlob);
+            previewAudio.style.display = 'block';
             sendBtn.style.display = 'block';
           };
 
@@ -111,6 +148,7 @@
       }
     }
 
+    // ฟังก์ชันส่งไฟล์ไปที่ Drive
     async function sendToGoogleDrive() {
       if (!audioBlob) return;
 
@@ -138,14 +176,48 @@
             body: JSON.stringify(payload)
           });
 
-          status.innerText = "✨ ส่งข้อความเรียบร้อยแล้ว ขอบคุณนะ!";
+          status.innerText = "✨ ส่งข้อความเรียบร้อยแล้ว!";
           sendBtn.style.display = 'none';
+          
+          // รอ 2 วินาทีแล้วโหลดรายการเสียงใหม่
+          setTimeout(loadVoiceList, 2000);
         } catch (error) {
           status.innerText = "❌ เกิดข้อผิดพลาด ลองใหม่อีกครั้งนะ";
           sendBtn.disabled = false;
         }
       };
     }
+
+    // ฟังก์ชันดึงรายการไฟล์เสียงมาแสดงบนเว็บ
+    async function loadVoiceList() {
+      const listDiv = document.getElementById('voiceList');
+      try {
+        const res = await fetch(GAS_WEBAPP_URL);
+        const data = await res.json();
+
+        if (data.status === 'success' && data.files.length > 0) {
+          listDiv.innerHTML = data.files.map(item => {
+            const dateStr = new Date(item.created).toLocaleString('th-TH', {
+              dateStyle: 'short',
+              timeStyle: 'short'
+            });
+            return `
+              <div class="voice-item">
+                <div class="voice-date">📅 ${dateStr}</div>
+                <audio controls preload="none" src="${item.audioUrl}"></audio>
+              </div>
+            `;
+          }).join('');
+        } else {
+          listDiv.innerHTML = '<div style="color: #a4b0be; font-size: 13px;">ยังไม่มีข้อความเสียงเลย 💌</div>';
+        }
+      } catch (err) {
+        listDiv.innerHTML = '<div style="color: #a4b0be; font-size: 13px;">โหลดข้อความไม่สำเร็จ</div>';
+      }
+    }
+
+    // โหลดข้อความเสียงทันทีที่เปิดหน้าเว็บ
+    loadVoiceList();
   </script>
 </body>
 </html>
