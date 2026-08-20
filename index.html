@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cute Voice Note 💌</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #fff5f5;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 16px;
+    }
+    .card {
+      background: white;
+      padding: 32px 24px;
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(255, 107, 129, 0.15);
+      text-align: center;
+      max-width: 380px;
+      width: 100%;
+    }
+    h2 { color: #ff6b81; margin-top: 0; margin-bottom: 8px; font-size: 22px; }
+    p { color: #747d8c; font-size: 14px; margin-bottom: 24px; }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 30px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-record { background: #ff4757; color: white; }
+    .btn-record:active { transform: scale(0.98); }
+    .btn-record.recording { background: #2ed573; animation: pulse 1.5s infinite; }
+    .btn-send { background: #70a1ff; color: white; display: none; }
+    .btn-send:disabled { background: #ced6e0; cursor: not-allowed; }
+    audio { width: 100%; margin-top: 16px; display: none; }
+    #status { margin-top: 16px; font-size: 14px; color: #ff6b81; font-weight: 500; }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.03); opacity: 0.8; }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>💌 ฝากข้อความเสียง</h2>
+    <p>กดปุ่มด้านล่างเพื่ออัดเสียงสั้นๆ ได้เลยนะ</p>
+
+    <button id="recordBtn" class="btn btn-record" onclick="toggleRecord()">🎙️ กดเพื่อเริ่มอัดเสียง</button>
+    <audio id="audioPlayback" controls></audio>
+    <button id="sendBtn" class="btn btn-send" onclick="sendToGoogleDrive()">📤 ส่งข้อความเสียง</button>
+    
+    <div id="status"></div>
+  </div>
+
+  <script>
+    const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycby-yJoX27OnTcsnLs3kjRwGTdp99XAkSWjBYYmgs4svLABULNCQ_X8ni7OR-ffQIGaQ6g/exec";
+
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+    let audioBlob = null;
+
+    async function toggleRecord() {
+      const recordBtn = document.getElementById('recordBtn');
+      const sendBtn = document.getElementById('sendBtn');
+      const audioPlayback = document.getElementById('audioPlayback');
+      const status = document.getElementById('status');
+
+      if (!isRecording) {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = event => audioChunks.push(event.data);
+
+          mediaRecorder.onstop = () => {
+            audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+            audioPlayback.src = URL.createObjectURL(audioBlob);
+            audioPlayback.style.display = 'block';
+            sendBtn.style.display = 'block';
+          };
+
+          mediaRecorder.start();
+          isRecording = true;
+          recordBtn.innerText = "⏹️ กำลังอัด... กดเพื่อหยุด";
+          recordBtn.classList.add('recording');
+          status.innerText = "";
+        } catch (err) {
+          status.innerText = "⚠️ กรุณากดอนุญาตให้ใช้ไมโครโฟน";
+        }
+      } else {
+        mediaRecorder.stop();
+        isRecording = false;
+        recordBtn.innerText = "🎙️ อัดใหม่อีกครั้ง";
+        recordBtn.classList.remove('recording');
+      }
+    }
+
+    async function sendToGoogleDrive() {
+      if (!audioBlob) return;
+
+      const sendBtn = document.getElementById('sendBtn');
+      const status = document.getElementById('status');
+
+      sendBtn.disabled = true;
+      status.innerText = "⏳ กำลังส่งข้อความเสียง...";
+
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      reader.onloadend = async () => {
+        const base64Data = reader.result.split(',')[1];
+        const payload = {
+          fileName: `voice_${new Date().toISOString().replace(/[:.]/g, '-')}.webm`,
+          mimeType: 'audio/webm',
+          audioBase64: base64Data
+        };
+
+        try {
+          await fetch(GAS_WEBAPP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          status.innerText = "✨ ส่งข้อความเรียบร้อยแล้ว ขอบคุณนะ!";
+          sendBtn.style.display = 'none';
+        } catch (error) {
+          status.innerText = "❌ เกิดข้อผิดพลาด ลองใหม่อีกครั้งนะ";
+          sendBtn.disabled = false;
+        }
+      };
+    }
+  </script>
+</body>
+</html>
